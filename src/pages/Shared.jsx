@@ -77,16 +77,18 @@ export function Venta() {
     <button className="btn" disabled={!items.length||!met} onClick={vender}>Registrar venta</button></div></div></div></>
 }
 
-/* Interfaz: Asistencia | Consulta y salida manual | Actores: Recepcionista y Administrador | BD: SELECT asistencia; RPC rpc_asistencia_marcar (UPDATE salida). La entrada se registra automáticamente al iniciar sesión | Autor: [Nombre del Integrante del Equipo] */
+/* Interfaz: Asistencia | Consulta (el administrador ve a todo el personal, con nombre, rol y sucursal) y salida manual | Actores: Recepcionista y Administrador | BD: SELECT asistencia; RPC rpc_asistencia_marcar (UPDATE salida). La entrada se registra automáticamente al iniciar sesión | Autor: [Nombre del Integrante del Equipo] */
 export function Asistencia() {
   const { perfil } = useAuth(); const [rows,setRows]=useState([]),[m,setM]=useState(null)
-  const cargar=useCallback(async()=>{const {data}=await supabase.from('asistencia').select('*').eq('id_empleado',perfil.id_empleado).order('entrada',{ascending:false}).limit(60);setRows(data||[])},[perfil])
+  const cargar=useCallback(async()=>{let q=supabase.from('asistencia').select('*, empleado(nombre_completo, rol(nombre), sucursal(nombre))').order('entrada',{ascending:false}).limit(200)
+    if(!perfil.esAdmin) q=q.eq('id_empleado',perfil.id_empleado) // el administrador ve a todo el personal
+    const {data}=await q;setRows(data||[])},[perfil])
   useEffect(()=>{cargar()},[cargar])
-  const abierta=rows.some(r=>!r.salida)
+  const abierta=rows.some(r=>!r.salida&&r.id_empleado===perfil.id_empleado)
   const salida=async()=>{const {error}=await supabase.rpc('rpc_asistencia_marcar',{p_tipo:'SALIDA'});setM(error?{t:'err',text:error.message}:{t:'ok',text:'Salida registrada'});cargar()}
   return <><h1>Asistencia</h1><div className="sub">{perfil.nombre_completo} · {perfil.sucursal.nombre}. La entrada se registra al iniciar sesión.</div><Msg m={m}/>
     <div className="card row"><button className="btn" disabled={!abierta} onClick={salida}>Marcar salida</button>{abierta?<Badge warn>En turno</Badge>:<Badge ok>Salida registrada</Badge>}</div>
-    <div className="card"><Table rows={rows} cols={[{h:'Entrada',r:r=>fecha(r.entrada)},{h:'Salida',r:r=>r.salida?fecha(r.salida):<Badge warn>Pendiente</Badge>}]}/></div></>
+    <div className="card"><Table rows={rows} cols={[{h:'Empleado',r:r=>r.empleado?.nombre_completo},{h:'Rol',r:r=>r.empleado?.rol?.nombre},...(perfil.esAdmin?[{h:'Sucursal',r:r=>r.empleado?.sucursal?.nombre}]:[]),{h:'Entrada',r:r=>fecha(r.entrada)},{h:'Salida',r:r=>r.salida?fecha(r.salida):<Badge warn>Pendiente</Badge>}]}/></div></>
 }
 
 /* Interfaz: Corte y cierre de caja | Transacción/Consulta | Actores: Recepcionista (su sucursal) y Administrador (todas) | BD: SELECT pago, vw_venta_total, metodo_pago, vw_corte_caja_resumen; RPC rpc_corte_crear (INSERT corte_caja) | Autor: [Nombre del Integrante del Equipo] */

@@ -12,3 +12,11 @@ export function Table({cols,rows,per=8,empty='Sin registros'}) {
 }
 export const Modal = ({title,onClose,children}) => <div className="modal"><div className="card"><div className="row" style={{justifyContent:'space-between'}}><h1>{title}</h1><button className="btn ghost sm" onClick={onClose}>Cerrar</button></div>{children}</div></div>
 export const F = ({l,children}) => <div><label>{l}</label>{children}</div>
+export const Confirm = ({text,onYes,onNo}) => <div className="modal"><div className="card" style={{width:380}}><h1 style={{fontSize:17}}>{text}</h1><div className="row" style={{justifyContent:'flex-end',marginTop:16}}><button className="btn ghost" onClick={onNo}>Cancelar</button><button className="btn" onClick={onYes}>Confirmar</button></div></div></div>
+export function useTheme(){
+  const [t,setT]=useState(()=>localStorage.getItem('tr-theme')||'dark')
+  const set=(v)=>{localStorage.setItem('tr-theme',v);document.documentElement.dataset.theme=v;setT(v)}
+  document.documentElement.dataset.theme=t
+  return [t,()=>set(t==='dark'?'light':'dark')]
+}
+export const ThemeBtn = () => { const [t,tog]=useTheme(); return <button className="btn ghost sm" onClick={tog}>{t==='dark'?'Modo blanco':'Modo oscuro'}</button> }

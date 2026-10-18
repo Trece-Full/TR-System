@@ -8,27 +8,71 @@ const useSuc=()=>{const [s,setS]=useState([]);useEffect(()=>{supabase.from('sucu
 
 /* Interfaz: Dashboard general | Consulta | Actor: Administrador | BD: SELECT sucursal, cliente, pago, vw_venta_total, inventario | Autor: [Nombre del Integrante del Equipo] */
 export function ADashboard() {
-  const [d,setD]=useState([]),[bajo,setBajo]=useState(0)
+  const [d, setD] = useState([]);
+  const [bajo, setBajo] = useState(0);
+
   useEffect(() => {
+    (async () => {
+      const [s, c, p, v, i] = await Promise.all([
+        supabase.from('sucursal').select('*').eq('activo', true),
+        supabase.from('cliente').select('id_sucursal').eq('activo', true),
+        supabase.from('pago').select('id_sucursal,monto'),
+        supabase.from('vw_venta_total').select('id_sucursal,total'),
+        supabase.from('inventario').select('stock_actual,stock_minimo')
+      ]);
 
-  const obtenerDatos = async () => {
-    setBajo((i.data || []).filter(x => x.stock_actual <= x.stock_minimo).length);
-  };
+      setD(
+        (s.data || []).map(x => ({
+          ...x,
+          clientes: (c.data || []).filter(y => y.id_sucursal === x.id_sucursal).length,
+          pagos: (p.data || []).filter(y => y.id_sucursal === x.id_sucursal).reduce((a, y) => a + Number(y.monto), 0),
+          ventas: (v.data || []).filter(y => y.id_sucursal === x.id_sucursal).reduce((a, y) => a + Number(y.monto), 0)
+        }))
+      );
 
-  obtenerDatos();
-}, []);
-  const t=(k)=>d.reduce((a,x)=>a+x[k],0)
-  return <><h1>Dashboard general</h1><div className="sub">Métricas globales y por sucursal</div>
-    <div className="grid"><div className="card kpi">Sucursales activas<b>{d.length}</b></div><div className="card kpi">Clientes activos<b>{t('clientes')}</b></div>
-    <div className="card kpi">Ingresos por membresías<b>{money(t('pagos'))}</b></div><div className="card kpi">Ventas de productos<b>{money(t('ventas'))}</b></div>
-    <div className="card kpi">Productos en stock mínimo<b>{bajo}</b></div></div>
-    <div className="card"><Table rows={d} cols={[{h:'Sucursal',r:r=>r.nombre},{h:'Clientes',r:r=>r.clientes},{h:'Membresías',r:r=>money(r.pagos)},{h:'Ventas',r:r=>money(r.ventas)}]}/></div></>
+      setBajo((i.data || []).filter(x => x.stock_actual <= x.stock_minimo).length);
+    })();
+  }, []);
+
+  const t = (k) => d.reduce((a, x) => a + (x[k] || 0), 0);
+
+  return (
+    <>
+      <h1>Dashboard general</h1>
+      <div className="sub">Métricas globales y por sucursal</div>
+      <div className="grid">
+        <div className="card kpi">Sucursales activas<b>{d.length}</b></div>
+        <div className="card kpi">Clientes activos<b>{t('clientes')}</b></div>
+        <div className="card kpi">Ingresos por membresías<b>{money(t('pagos'))}</b></div>
+        <div className="card kpi">Ventas de productos<b>{money(t('ventas'))}</b></div>
+        <div className="card kpi">Productos en stock mínimo<b>{bajo}</b></div>
+      </div>
+      <div className="card">
+        <Table 
+          rows={d} 
+          cols={[
+            { h: 'Sucursal', r: r => r.nombre },
+            { h: 'Clientes', r: r => r.clientes },
+            { h: 'Membresías', r: r => money(r.pagos) },
+            { h: 'Ventas', r: r => money(r.ventas) }
+          ]} 
+        />
+      </div>
+    </>
+  );
 }
 
-/* Interfaz: Gestión de empleados | Registro/Actualización/Baja lógica/Consulta | Actor: Administrador | BD: SELECT empleado, rol, sucursal; RPC rpc_empleado_crear (INSERT empleado + usuario Auth), rpc_empleado_actualizar (UPDATE correo, sucursal, rol, activo) | Autor: [Nombre del Integrante del Equipo] */
+
+// Gestión de empleados
 export function Empleados() {
-  const { perfil } = useAuth(); const suc=useSuc(); const [rows,setRows]=useState([]),[roles,setRoles]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
-  const cargar=useCallback(async()=>{const [a,b]=await Promise.all([supabase.from('empleado').select('*, rol(nombre), sucursal(nombre)').order('id_empleado'),supabase.from('rol').select('*')]);setRows(a.data||[]);setRoles(b.data||[])},[])
+  const { perfil } = useAuth();
+  const suc = useSuc();
+  const [rows, setRows] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [pend, setPend] = useState([]);
+
+  const cargar=useCallback(async()=>{const [a,b,c]=await Promise.all([supabase.from('empleado').select('*, rol(nombre), sucursal(nombre)').order('id_empleado'),supabase.from('rol').select('*'),supabase.from('bitacora').select('id_empleado,accion,fecha_hora').in('accion',['RECUPERACION','CAMBIO_PASSWORD']).order('fecha_hora',{ascending:false})]);setRows(a.data||[]);setRoles(b.data||[])
+    const ult={};(c.data||[]).forEach(x=>{if(!ult[x.id_empleado])ult[x.id_empleado]=x});setPend(Object.values(ult).filter(x=>x.accion==='RECUPERACION').map(x=>x.id_empleado))},[])
   useEffect(()=>{cargar()},[cargar])
   const nuevo=()=>{setM(null);setEd({nuevo:true,usuario:'',password:'',nombre_completo:'',telefono:'',correo:'',puesto:'Recepcionista',turno:'',activo:true,id_sucursal:suc[0]?.id_sucursal||'',id_rol:roles.find(r=>r.nombre==='RECEPCIONISTA')?.id_rol||''})}
   const guardar=async(e)=>{e.preventDefault(); const d=ed
@@ -39,6 +83,7 @@ export function Empleados() {
       : await supabase.rpc('rpc_empleado_actualizar',{p_id:d.id_empleado,p_nombre:d.nombre_completo,p_telefono:d.telefono,p_correo:d.correo,p_id_sucursal:+d.id_sucursal,p_id_rol:+d.id_rol,p_turno:d.turno||'',p_activo:d.activo,p_password:d.password||null})
     if(r.error) return setM({t:'err',text:r.error.message.includes('empleado_usuario')?'Ese usuario ya existe':r.error.message}); setM({t:'ok',text:d.nuevo?'Empleado registrado':'Empleado actualizado'}); setEd(null); cargar()}
   return <><h1>Empleados</h1><div className="sub">Alta de recepcionistas, corrección de correo, cambio de sucursal y baja lógica</div><Msg m={m}/>
+    {pend.length>0&&<div className="msg err">Solicitudes de recuperación de contraseña pendientes: {rows.filter(r=>pend.includes(r.id_empleado)).map(r=>r.usuario).join(', ')}. Abre Editar y asigna una contraseña temporal.</div>}
     <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={nuevo}>Registrar empleado</button></div>
     <Table rows={rows} cols={[{h:'Usuario',r:r=>r.usuario},{h:'Nombre',r:r=>r.nombre_completo},{h:'Rol',r:r=>r.rol.nombre},{h:'Sucursal',r:r=>r.sucursal.nombre},{h:'Correo',r:r=>r.correo},
       {h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Baja</Badge>},{h:'',r:r=><button className="btn ghost sm" onClick={()=>{setM(null);setEd({...r,password:''})}}>Editar</button>}]}/></div>
@@ -50,7 +95,7 @@ export function Empleados() {
       <F l="Correo electrónico"><input required type="email" value={ed.correo} onChange={e=>setEd({...ed,correo:e.target.value})}/></F>
       <F l="Rol"><select value={ed.id_rol} onChange={e=>setEd({...ed,id_rol:e.target.value})}>{roles.map(r=><option key={r.id_rol} value={r.id_rol}>{r.nombre}</option>)}</select></F>
       <F l="Sucursal (obligatoria)"><select required value={ed.id_sucursal} onChange={e=>setEd({...ed,id_sucursal:e.target.value})}>{suc.filter(s=>s.activo).map(s=><option key={s.id_sucursal} value={s.id_sucursal}>{s.nombre}</option>)}</select></F>
-      <F l="Turno"><input value={ed.turno||''} onChange={e=>setEd({...ed,turno:e.target.value})}/></F>
+      <F l="Turno"><select required value={ed.turno||''} onChange={e=>setEd({...ed,turno:e.target.value})}><option value="">Seleccionar</option><option>Matutino</option><option>Vespertino</option></select></F>
       {!ed.nuevo&&<F l="Estado"><select disabled={ed.id_empleado===perfil.id_empleado} value={ed.activo?'1':'0'} onChange={e=>setEd({...ed,activo:e.target.value==='1'})}><option value="1">Activo</option><option value="0">Dar de baja</option></select></F>}
       <button className="btn">Guardar</button></form></Modal>}</>
 }
@@ -101,27 +146,6 @@ export function Productos() {
       <F l="Precio de venta"><input required type="number" min="0.01" step="0.01" value={np.precio_venta} onChange={e=>setNp({...np,precio_venta:e.target.value})}/></F><button className="btn">Guardar</button></form></Modal>}</>
 }
 
-/* Interfaz: Corte y cierre de caja | Transacción/Consulta | Actor: Administrador | BD: SELECT vw_corte_caja_resumen; RPC rpc_corte_crear (INSERT corte_caja) | Autor: [Nombre del Integrante del Equipo] */
-export function Cortes() {
-  const suc=useSuc(); const [rows,setRows]=useState([]),[m,setM]=useState(null)
-  const [f,setF]=useState({s:'',i:'',fin:'',fondo:'0',contado:'',obs:''})
-  const cargar=useCallback(async()=>{const {data}=await supabase.from('vw_corte_caja_resumen').select('*').order('fecha_cierre',{ascending:false});setRows(data||[])},[])
-  useEffect(()=>{cargar()},[cargar])
-  const crear=async(e)=>{e.preventDefault()
-    const {data,error}=await supabase.rpc('rpc_corte_crear',{p_id_sucursal:+f.s,p_inicio:new Date(f.i).toISOString(),p_fin:new Date(f.fin).toISOString(),p_fondo:+f.fondo,p_contado:+f.contado,p_obs:f.obs})
-    if(error) return setM({t:'err',text:error.message}); setM({t:'ok',text:`Corte registrado: ${data}`}); cargar()}
-  const nom=(id)=>suc.find(s=>s.id_sucursal===id)?.nombre
-  return <><h1>Corte de caja</h1><div className="sub">Efectivo esperado = fondo + cobros y ventas en efectivo del periodo</div><Msg m={m}/>
-    <form className="card form" onSubmit={crear}>
-      <F l="Sucursal"><select required value={f.s} onChange={e=>setF({...f,s:e.target.value})}><option value="">Seleccionar</option>{suc.map(s=><option key={s.id_sucursal} value={s.id_sucursal}>{s.nombre}</option>)}</select></F>
-      <F l="Inicio del periodo"><input required type="datetime-local" value={f.i} onChange={e=>setF({...f,i:e.target.value})}/></F><F l="Fin del periodo"><input required type="datetime-local" value={f.fin} onChange={e=>setF({...f,fin:e.target.value})}/></F>
-      <F l="Fondo inicial"><input required type="number" min="0" step="0.01" value={f.fondo} onChange={e=>setF({...f,fondo:e.target.value})}/></F>
-      <F l="Efectivo contado"><input required type="number" min="0" step="0.01" value={f.contado} onChange={e=>setF({...f,contado:e.target.value})}/></F>
-      <F l="Observaciones"><input value={f.obs} onChange={e=>setF({...f,obs:e.target.value})}/></F><button className="btn">Cerrar caja</button></form>
-    <div className="card"><Table rows={rows} cols={[{h:'Folio',r:r=>r.folio},{h:'Sucursal',r:r=>nom(r.id_sucursal)},{h:'Periodo',r:r=>`${fecha(r.inicio)} – ${fecha(r.fin)}`},{h:'Ingresos',r:r=>money(r.total_ingresos)},
-      {h:'Esperado',r:r=>money(r.efectivo_esperado)},{h:'Contado',r:r=>money(r.efectivo_contado)},{h:'Diferencia',r:r=>Number(r.diferencia)===0?<Badge ok>{money(0)}</Badge>:<Badge>{money(r.diferencia)}</Badge>}]}/></div></>
-}
-
 /* Interfaz: Bitácora de auditoría | Consulta | Actor: Administrador | BD: SELECT bitacora, empleado | Autor: [Nombre del Integrante del Equipo] */
 export function Bitacora() {
   const [rows,setRows]=useState([]),[q,setQ]=useState('')
@@ -130,4 +154,38 @@ export function Bitacora() {
   return <><h1>Bitácora de auditoría</h1><div className="sub">Últimas 500 acciones registradas</div>
     <div className="card"><input style={{maxWidth:320,marginBottom:10}} placeholder="Filtrar" value={q} onChange={e=>setQ(e.target.value)}/>
     <Table rows={f} per={12} cols={[{h:'Fecha',r:r=>fecha(r.fecha_hora)},{h:'Usuario',r:r=>r.empleado?.nombre_completo||'Sistema'},{h:'Acción',r:r=>r.accion},{h:'Entidad',r:r=>r.entidad},{h:'Ref.',r:r=>r.referencia_registro},{h:'Detalle',r:r=>r.detalle}]}/></div></>
+}
+
+/* Interfaz: Tipos de membresía | Registro/Actualización/Consulta | Actor: Administrador | BD: SELECT/INSERT/UPDATE tipo_membresia | Autor: [Nombre del Integrante del Equipo] */
+export function TiposMembresia() {
+  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
+  const cargar=useCallback(async()=>{const {data}=await supabase.from('tipo_membresia').select('*').order('duracion_meses');setRows(data||[])},[])
+  useEffect(()=>{cargar()},[cargar])
+  const guardar=async(e)=>{e.preventDefault();const v={nombre:ed.nombre.trim(),duracion_meses:+ed.duracion_meses,costo:+ed.costo,activo:ed.activo}
+    const r=ed.id_tipo_membresia?await supabase.from('tipo_membresia').update(v).eq('id_tipo_membresia',ed.id_tipo_membresia):await supabase.from('tipo_membresia').insert(v)
+    if(r.error)return setM({t:'err',text:r.error.code==='23505'?'Ya existe un tipo con ese nombre':r.error.message});setM({t:'ok',text:'Tipo de membresía guardado (los cambios aplican a nuevas contrataciones)'});setEd(null);cargar()}
+  return <><h1>Tipos de membresía</h1><div className="sub">Catálogo de planes. Las membresías ya contratadas conservan su costo y duración.</div><Msg m={m}/>
+    <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={()=>setEd({nombre:'',duracion_meses:1,costo:'',activo:true})}>Registrar tipo</button></div>
+    <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Duración',r:r=>`${r.duracion_meses} mes(es)`},{h:'Costo',r:r=>money(r.costo)},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'',r:r=><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button>}]}/></div>
+    {ed&&<Modal title={ed.id_tipo_membresia?'Editar tipo':'Registrar tipo'} onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
+      <F l="Nombre"><input required value={ed.nombre} onChange={e=>setEd({...ed,nombre:e.target.value})}/></F><F l="Duración (meses)"><input required type="number" min="1" value={ed.duracion_meses} onChange={e=>setEd({...ed,duracion_meses:e.target.value})}/></F>
+      <F l="Costo"><input required type="number" min="0.01" step="0.01" value={ed.costo} onChange={e=>setEd({...ed,costo:e.target.value})}/></F>
+      <F l="Estado"><select value={ed.activo?'1':'0'} onChange={e=>setEd({...ed,activo:e.target.value==='1'})}><option value="1">Activo</option><option value="0">Inactivo</option></select></F><button className="btn">Guardar</button></form></Modal>}</>
+}
+
+/* Interfaz: Métodos de pago | Registro/Actualización/Consulta | Actor: Administrador | BD: SELECT/INSERT/UPDATE metodo_pago | Autor: [Nombre del Integrante del Equipo] */
+export function MetodosPago() {
+  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
+  const cargar=useCallback(async()=>{const {data}=await supabase.from('metodo_pago').select('*').order('id_metodo_pago');setRows(data||[])},[])
+  useEffect(()=>{cargar()},[cargar])
+  const guardar=async(e)=>{e.preventDefault();const v={nombre:ed.nombre.trim(),es_efectivo:ed.es_efectivo,activo:ed.activo}
+    const r=ed.id_metodo_pago?await supabase.from('metodo_pago').update(v).eq('id_metodo_pago',ed.id_metodo_pago):await supabase.from('metodo_pago').insert(v)
+    if(r.error)return setM({t:'err',text:r.error.code==='23505'?'Ese método de pago ya existe':r.error.message});setM({t:'ok',text:'Método de pago guardado'});setEd(null);cargar()}
+  return <><h1>Métodos de pago</h1><div className="sub">Solo el efectivo cuenta para el arqueo del corte de caja. Desactiva en lugar de eliminar para conservar el historial.</div><Msg m={m}/>
+    <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={()=>setEd({nombre:'',es_efectivo:false,activo:true})}>Registrar método</button></div>
+    <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Es efectivo',r:r=>r.es_efectivo?'Sí':'No'},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'',r:r=><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button>}]}/></div>
+    {ed&&<Modal title={ed.id_metodo_pago?'Editar método':'Registrar método'} onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
+      <F l="Nombre"><input required value={ed.nombre} onChange={e=>setEd({...ed,nombre:e.target.value})}/></F>
+      <F l="Tipo"><select value={ed.es_efectivo?'1':'0'} onChange={e=>setEd({...ed,es_efectivo:e.target.value==='1'})}><option value="0">No es efectivo</option><option value="1">Efectivo</option></select></F>
+      <F l="Estado"><select value={ed.activo?'1':'0'} onChange={e=>setEd({...ed,activo:e.target.value==='1'})}><option value="1">Activo</option><option value="0">Inactivo</option></select></F><button className="btn">Guardar</button></form></Modal>}</>
 }

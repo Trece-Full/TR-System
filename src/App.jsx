@@ -26,7 +26,7 @@ function Guard({ rol }) {
 function Shell() {
   const { perfil, salir } = useAuth(); const [conf,setConf]=useState(false), [msg,setMsg]=useState(null)
   const base = perfil.esAdmin ? '/admin' : '/recepcion'
-  const comunes = [['clientes','Clientes'],['por-vencer','Membresías por vencer'],['venta','Punto de venta'],['cortes','Corte de caja'],['asistencia','Asistencia']]
+  const comunes = [['clientes','Clientes'],['cobros','Membresías y cobros'],['por-vencer','Membresías por vencer'],['venta','Punto de venta'],['cortes','Corte de caja'],['asistencia','Asistencia']]
   const menu = perfil.esAdmin
     ? [['','Dashboard',true],...comunes,['productos','Productos e inventario'],['tipos','Tipos de membresía'],['metodos','Métodos de pago'],['empleados','Empleados'],['sucursales','Sucursales'],['bitacora','Bitácora']]
     : [['','Dashboard',true],['clientes','Clientes'],['cobros','Membresías y cobros'],['por-vencer','Membresías por vencer'],['venta','Punto de venta'],['cortes','Corte de caja'],['asistencia','Asistencia']]
@@ -48,12 +48,12 @@ export default function App() {
   const salir = async () => { await supabase.auth.signOut(); setPerfil(null) }
   if (perfil === undefined) return null
   const home = perfil ? (perfil.esAdmin ? '/admin' : '/recepcion') : '/login'
-  const comunes = <><Route path="clientes" element={<Clientes/>}/><Route path="por-vencer" element={<PorVencer/>}/><Route path="venta" element={<Venta/>}/><Route path="cortes" element={<Cortes/>}/><Route path="asistencia" element={<Asistencia/>}/></>
+  const comunes = <><Route path="clientes" element={<Clientes/>}/><Route path="cobros" element={<Cobros/>}/><Route path="por-vencer" element={<PorVencer/>}/><Route path="venta" element={<Venta/>}/><Route path="cortes" element={<Cortes/>}/><Route path="asistencia" element={<Asistencia/>}/></>
   return <Ctx.Provider value={{ perfil, refrescar, salir }}><Routes>
     <Route path="/login" element={perfil ? <Navigate to={home} replace/> : <Login/>}/>
     <Route path="/admin" element={<Guard rol="ADMIN"/>}><Route index element={<ADashboard/>}/>{comunes}
       <Route path="productos" element={<Productos/>}/><Route path="tipos" element={<TiposMembresia/>}/><Route path="metodos" element={<MetodosPago/>}/>
       <Route path="empleados" element={<Empleados/>}/><Route path="sucursales" element={<Sucursales/>}/><Route path="bitacora" element={<Bitacora/>}/></Route>
-    <Route path="/recepcion" element={<Guard rol="RECEPCION"/>}><Route index element={<RDashboard/>}/>{comunes}<Route path="cobros" element={<Cobros/>}/></Route>
+    <Route path="/recepcion" element={<Guard rol="RECEPCION"/>}><Route index element={<RDashboard/>}/>{comunes}</Route>
     <Route path="*" element={<Navigate to={home} replace/>}/></Routes></Ctx.Provider>
 }

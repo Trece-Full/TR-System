@@ -1,0 +1,32 @@
+:root{--bg:#09090b;--panel:#121214;--line:#26262b;--txt:#e7e7ea;--mut:#9a9aa3;--red:#B42323;--red2:#991B1B;--ok:#2f8f5b;--warn:#b7791f;--hov:#1b1b1f;--okt:#5cc48c;--errt:#e06666;--wt:#e0a94a}
+:root[data-theme=light]{--bg:#f4f4f5;--panel:#ffffff;--line:#d9d9de;--txt:#18181b;--mut:#5f5f69;--red:#B42323;--red2:#8f1b1b;--hov:#ececef;--okt:#1f7a4a;--errt:#a61e1e;--wt:#8a5a0a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,Segoe UI,sans-serif}
+.layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{font-weight:700;font-size:16px;padding:4px 10px 14px}.brand small{display:block;color:var(--mut);font-weight:400;font-size:12px}
+.side a{color:var(--mut);text-decoration:none;padding:9px 10px;border-radius:6px}.side a.active{background:var(--red2);color:#fff}.side a:hover:not(.active){background:var(--hov)}
+.who{margin-top:auto;border-top:1px solid var(--line);padding:12px 10px 0;color:var(--mut);font-size:12px}
+main{padding:24px 28px;max-width:1200px}h1{font-size:20px;margin:0 0 4px}.sub{color:var(--mut);margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.kpi b{display:block;font-size:22px;margin-top:4px}
+table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mut);font-weight:500;font-size:12px}
+input,select,textarea{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;font:inherit}
+input:focus,select:focus{outline:2px solid var(--red2);outline-offset:0}label{display:block;color:var(--mut);font-size:12px;margin:0 0 4px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+.btn{background:var(--red);color:#fff;border:0;border-radius:6px;padding:9px 14px;cursor:pointer;font:inherit}.btn:hover{background:var(--red2)}.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}.btn.sm{padding:5px 9px;font-size:12px}
+.badge{padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid}.b-ok{color:var(--okt);border-color:#2f8f5b}.b-no{color:var(--errt);border-color:var(--red2)}.b-warn{color:var(--wt);border-color:var(--warn)}
+.msg{padding:10px 12px;border-radius:6px;margin-bottom:12px;border:1px solid}.msg.err{border-color:var(--red2);color:var(--errt)}.msg.ok{border-color:var(--ok);color:var(--okt)}
+.login{min-height:100vh;display:grid;place-items:center}.login .card{width:340px;padding:26px}.login h1{font-size:22px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pager{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:10px;color:var(--mut)}
+.modal{position:fixed;inset:0;background:#0009;display:grid;place-items:center;padding:16px}.modal .card{width:min(560px,100%);max-height:90vh;overflow:auto}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.side{flex-direction:row;flex-wrap:wrap}.who{display:none}}
+
+.split{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}.hero{padding:48px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:var(--panel);border-right:1px solid var(--line)}
+.hero h2{font-size:38px;line-height:1.1;margin:0 0 14px;letter-spacing:-.5px}.hero h2 span{color:var(--red)}.hero p{color:var(--mut);max-width:420px;margin:0 auto}
+.logo{font-weight:800;font-size:22px;letter-spacing:1px;margin-bottom:36px}.logo i{font-style:normal;color:var(--red)}
+.pane{display:grid;place-items:center;padding:24px}.pane .card{width:min(400px,100%);padding:24px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px;margin:14px 0 16px}
+.tabs button{background:none;border:0;color:var(--mut);padding:8px;border-radius:6px;cursor:pointer;font:inherit}.tabs button.on{background:var(--red);color:#fff}
+.link{background:none;border:0;color:var(--red);cursor:pointer;font:inherit;padding:0}.link:hover{text-decoration:underline}
+.theme{position:fixed;top:14px;right:16px}
+@media(max-width:800px){.split{grid-template-columns:1fr}.hero{display:none}}

@@ -5,7 +5,7 @@ import Login from './pages/Login'
 import { RDashboard, Cobros } from './pages/Recepcion'
 import { Clientes, Venta, Asistencia, Cortes, PorVencer } from './pages/Shared'
 import { ADashboard, Empleados, Productos, Bitacora, Sucursales, TiposMembresia, MetodosPago } from './pages/Admin'
-import { Confirm, ThemeBtn } from './ui'
+import { Confirm, ThemeBtn, ErrorBoundary } from './ui'
 
 const Ctx = createContext(null); export const useAuth = () => useContext(Ctx)
 
@@ -37,7 +37,7 @@ function Shell() {
     {menu.map(([to,t,end])=><NavLink key={to} to={`${base}/${to}`.replace(/\/$/,'')} end={end}>{t}</NavLink>)}
     <div className="who"><b style={{color:'var(--txt)'}}>{perfil.nombre_completo}</b><br/>{perfil.rol.nombre}{perfil.turno?` · ${perfil.turno}`:''}<br/>Sucursal: {perfil.sucursal.nombre}
     <div className="row" style={{marginTop:8}}><ThemeBtn/><button className="btn ghost sm" onClick={()=>setConf(true)}>Cerrar sesión</button></div></div></nav>
-    <main><Outlet/></main>
+    <main><ErrorBoundary><Outlet/></ErrorBoundary></main>
     {conf&&<Confirm text="¿Seguro que quieres cerrar sesión?" onNo={()=>setConf(false)} onYes={cerrar}/>}</div>
 }
 

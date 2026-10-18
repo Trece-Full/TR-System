@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Component } from 'react'
 export const Msg = ({m}) => m ? <div className={'msg '+(m.t==='ok'?'ok':'err')}>{m.text}</div> : null
 export const Badge = ({ok,children,warn}) => <span className={'badge '+(warn?'b-warn':ok?'b-ok':'b-no')}>{children}</span>
 export function Table({cols,rows,per=8,empty='Sin registros'}) {
@@ -20,3 +20,9 @@ export function useTheme(){
   return [t,()=>set(t==='dark'?'light':'dark')]
 }
 export const ThemeBtn = () => { const [t,tog]=useTheme(); return <button className="btn ghost sm" onClick={tog}>{t==='dark'?'Modo blanco':'Modo oscuro'}</button> }
+
+export class ErrorBoundary extends Component {
+  state={e:null}
+  static getDerivedStateFromError(e){return {e}}
+  render(){ return this.state.e ? <div className="card"><h1>Ocurrió un error en esta pantalla</h1><div className="msg err">{String(this.state.e.message||this.state.e)}</div><button className="btn" onClick={()=>location.reload()}>Recargar</button></div> : this.props.children }
+}

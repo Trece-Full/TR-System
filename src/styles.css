@@ -21,8 +21,8 @@ input:focus,select:focus{outline:2px solid var(--red2);outline-offset:0}label{di
 .modal{position:fixed;inset:0;background:#0009;display:grid;place-items:center;padding:16px}.modal .card{width:min(560px,100%);max-height:90vh;overflow:auto}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.side{flex-direction:row;flex-wrap:wrap}.who{display:none}}
 
-.split{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}.hero{padding:48px;display:flex;flex-direction:column;justify-content:center;background:var(--panel);border-right:1px solid var(--line)}
-.hero h2{font-size:38px;line-height:1.1;margin:0 0 14px;letter-spacing:-.5px}.hero h2 span{color:var(--red)}.hero p{color:var(--mut);max-width:420px}
+.split{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}.hero{padding:48px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:var(--panel);border-right:1px solid var(--line)}
+.hero h2{font-size:38px;line-height:1.1;margin:0 0 14px;letter-spacing:-.5px}.hero h2 span{color:var(--red)}.hero p{color:var(--mut);max-width:420px;margin:0 auto}
 .logo{font-weight:800;font-size:22px;letter-spacing:1px;margin-bottom:36px}.logo i{font-style:normal;color:var(--red)}
 .pane{display:grid;place-items:center;padding:24px}.pane .card{width:min(400px,100%);padding:24px}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px;margin:14px 0 16px}

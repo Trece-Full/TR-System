@@ -8,69 +8,25 @@ const useSuc=()=>{const [s,setS]=useState([]);useEffect(()=>{supabase.from('sucu
 
 /* Interfaz: Dashboard general | Consulta | Actor: Administrador | BD: SELECT sucursal, cliente, pago, vw_venta_total, inventario | Autor: [Nombre del Integrante del Equipo] */
 export function ADashboard() {
-  const [d, setD] = useState([]);
-  const [bajo, setBajo] = useState(0);
-
-  useEffect(() => {
-    (async () => {
-      const [s, c, p, v, i] = await Promise.all([
-        supabase.from('sucursal').select('*').eq('activo', true),
-        supabase.from('cliente').select('id_sucursal').eq('activo', true),
-        supabase.from('pago').select('id_sucursal,monto'),
-        supabase.from('vw_venta_total').select('id_sucursal,total'),
-        supabase.from('inventario').select('stock_actual,stock_minimo')
-      ]);
-
-      setD(
-        (s.data || []).map(x => ({
-          ...x,
-          clientes: (c.data || []).filter(y => y.id_sucursal === x.id_sucursal).length,
-          pagos: (p.data || []).filter(y => y.id_sucursal === x.id_sucursal).reduce((a, y) => a + Number(y.monto), 0),
-          ventas: (v.data || []).filter(y => y.id_sucursal === x.id_sucursal).reduce((a, y) => a + Number(y.monto), 0)
-        }))
-      );
-
-      setBajo((i.data || []).filter(x => x.stock_actual <= x.stock_minimo).length);
-    })();
-  }, []);
-
-  const t = (k) => d.reduce((a, x) => a + (x[k] || 0), 0);
-
-  return (
-    <>
-      <h1>Dashboard general</h1>
-      <div className="sub">Métricas globales y por sucursal</div>
-      <div className="grid">
-        <div className="card kpi">Sucursales activas<b>{d.length}</b></div>
-        <div className="card kpi">Clientes activos<b>{t('clientes')}</b></div>
-        <div className="card kpi">Ingresos por membresías<b>{money(t('pagos'))}</b></div>
-        <div className="card kpi">Ventas de productos<b>{money(t('ventas'))}</b></div>
-        <div className="card kpi">Productos en stock mínimo<b>{bajo}</b></div>
-      </div>
-      <div className="card">
-        <Table 
-          rows={d} 
-          cols={[
-            { h: 'Sucursal', r: r => r.nombre },
-            { h: 'Clientes', r: r => r.clientes },
-            { h: 'Membresías', r: r => money(r.pagos) },
-            { h: 'Ventas', r: r => money(r.ventas) }
-          ]} 
-        />
-      </div>
-    </>
-  );
+  const [d,setD]=useState([]),[bajo,setBajo]=useState(0)
+  useEffect(()=>{(async()=>{
+    const [s,c,p,v,i]=await Promise.all([supabase.from('sucursal').select('*').eq('activo',true),supabase.from('cliente').select('id_sucursal').eq('activo',true),
+      supabase.from('pago').select('id_sucursal,monto'),supabase.from('vw_venta_total').select('id_sucursal,total'),supabase.from('inventario').select('stock_actual,stock_minimo')])
+    setD((s.data||[]).map(x=>({...x,clientes:(c.data||[]).filter(y=>y.id_sucursal===x.id_sucursal).length,
+      pagos:(p.data||[]).filter(y=>y.id_sucursal===x.id_sucursal).reduce((a,y)=>a+Number(y.monto),0),ventas:(v.data||[]).filter(y=>y.id_sucursal===x.id_sucursal).reduce((a,y)=>a+Number(y.total),0)})))
+    setBajo((i.data||[]).filter(x=>x.stock_actual<=x.stock_minimo).length) })() },[])
+  const t=(k)=>d.reduce((a,x)=>a+x[k],0)
+  return <><h1>Dashboard general</h1><div className="sub">Métricas globales y por sucursal</div>
+    <div className="grid"><div className="card kpi">Sucursales activas<b>{d.length}</b></div><div className="card kpi">Clientes activos<b>{t('clientes')}</b></div>
+    <div className="card kpi">Ingresos por membresías<b>{money(t('pagos'))}</b></div><div className="card kpi">Ventas de productos<b>{money(t('ventas'))}</b></div>
+    <div className="card kpi">Productos en stock mínimo<b>{bajo}</b></div></div>
+    <div className="card"><Table rows={d} cols={[{h:'Sucursal',r:r=>r.nombre},{h:'Clientes',r:r=>r.clientes},{h:'Membresías',r:r=>money(r.pagos)},{h:'Ventas',r:r=>money(r.ventas)}]}/></div></>
 }
 
-
-// Gestión de empleados
+/* Interfaz: Gestión de empleados | Registro/Actualización/Baja lógica/Consulta | Actor: Administrador | BD: SELECT empleado, rol, sucursal; RPC rpc_empleado_crear (INSERT empleado + usuario Auth), rpc_empleado_actualizar (UPDATE correo, sucursal, rol, activo) | Autor: [Nombre del Integrante del Equipo] */
 export function Empleados() {
-  const { perfil } = useAuth();
-  const suc = useSuc();
-  const [rows, setRows] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [pend, setPend] = useState([]);
-
+  const { perfil } = useAuth(); const suc=useSuc(); const [rows,setRows]=useState([]),[roles,setRoles]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
+  const [pend,setPend]=useState([])
   const cargar=useCallback(async()=>{const [a,b,c]=await Promise.all([supabase.from('empleado').select('*, rol(nombre), sucursal(nombre)').order('id_empleado'),supabase.from('rol').select('*'),supabase.from('bitacora').select('id_empleado,accion,fecha_hora').in('accion',['RECUPERACION','CAMBIO_PASSWORD']).order('fecha_hora',{ascending:false})]);setRows(a.data||[]);setRoles(b.data||[])
     const ult={};(c.data||[]).forEach(x=>{if(!ult[x.id_empleado])ult[x.id_empleado]=x});setPend(Object.values(ult).filter(x=>x.accion==='RECUPERACION').map(x=>x.id_empleado))},[])
   useEffect(()=>{cargar()},[cargar])
@@ -85,7 +41,7 @@ export function Empleados() {
   return <><h1>Empleados</h1><div className="sub">Alta de recepcionistas, corrección de correo, cambio de sucursal y baja lógica</div><Msg m={m}/>
     {pend.length>0&&<div className="msg err">Solicitudes de recuperación de contraseña pendientes: {rows.filter(r=>pend.includes(r.id_empleado)).map(r=>r.usuario).join(', ')}. Abre Editar y asigna una contraseña temporal.</div>}
     <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={nuevo}>Registrar empleado</button></div>
-    <Table rows={rows} cols={[{h:'Usuario',r:r=>r.usuario},{h:'Nombre',r:r=>r.nombre_completo},{h:'Rol',r:r=>r.rol.nombre},{h:'Sucursal',r:r=>r.sucursal.nombre},{h:'Correo',r:r=>r.correo},
+    <Table rows={rows} cols={[{h:'Usuario',r:r=>r.usuario},{h:'Nombre',r:r=>r.nombre_completo},{h:'Rol',r:r=>r.rol?.nombre},{h:'Sucursal',r:r=>r.sucursal?.nombre},{h:'Correo',r:r=>r.correo},
       {h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Baja</Badge>},{h:'',r:r=><button className="btn ghost sm" onClick={()=>{setM(null);setEd({...r,password:''})}}>Editar</button>}]}/></div>
     {ed&&<Modal title={ed.nuevo?'Registrar empleado':'Editar empleado'} onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
       {ed.nuevo&&<F l="Usuario"><input required value={ed.usuario} onChange={e=>setEd({...ed,usuario:e.target.value.replace(/\s/g,'')})}/></F>}

@@ -85,19 +85,18 @@ export function Productos() {
     const a=await supabase.from('producto').update({nombre:ed.producto.nombre.trim(),precio_venta:+ed.producto.precio_venta}).eq('id_producto',ed.id_producto)
     const b=await supabase.from('inventario').update({stock_actual:+ed.stock_actual,stock_minimo:+ed.stock_minimo}).eq('id_inventario',ed.id_inventario)
     const er=a.error||b.error; if(er) return setM({t:'err',text:er.code==='23505'?'Ya existe un producto con ese nombre':er.message}); setM({t:'ok',text:'Producto actualizado'});setEd(null);cargar()}
-  const eliminar=async()=>{const id=del.id_producto;setDel(null)
-    await supabase.from('inventario').delete().eq('id_producto',id)
-    const r=await supabase.from('producto').delete().eq('id_producto',id)
-    if(r.error){cargar();return setM({t:'err',text:r.error.code==='23503'?'No se puede eliminar: el producto ya tiene ventas registradas.':r.error.message})}
-    setM({t:'ok',text:'Producto eliminado de todas las sucursales'});cargar()}
+  const cambiarEstado=async()=>{const p=del;setDel(null)
+    const r=await supabase.from('producto').update({activo:!p.activo}).eq('id_producto',p.id_producto)
+    if(r.error)return setM({t:'err',text:r.error.message})
+    setM({t:'ok',text:p.activo?'Producto deshabilitado: ya no aparece en el punto de venta':'Producto habilitado'});cargar()}
   const crear=async(e)=>{e.preventDefault();const r=await supabase.from('producto').insert({...np,uso_previsto:'VENTA',precio_venta:+np.precio_venta})
     if(r.error) return setM({t:'err',text:r.error.code==='23505'?'Ya existe un producto con ese nombre':r.error.message});setM({t:'ok',text:'Producto registrado en todas las sucursales (stock 0)'});setNp(null);cargar()}
   return <><h1>Productos e inventario</h1><div className="sub">Precios globales; stock y mínimo por sucursal</div><Msg m={m}/>
     <div className="card"><div className="row" style={{justifyContent:'space-between'}}><select style={{maxWidth:260}} value={sid} onChange={e=>setSid(e.target.value)}>{suc.map(s=><option key={s.id_sucursal} value={s.id_sucursal}>{s.nombre}</option>)}</select>
     <button className="btn" onClick={()=>setNp({nombre:'',descripcion:'',categoria:CATS[0],proveedor:'',precio_venta:''})}>Registrar producto</button></div>
     <Table rows={rows} per={10} cols={[{h:'Producto',r:r=>r.producto.nombre},{h:'Categoría',r:r=>r.producto.categoria},{h:'Precio',r:r=>money(r.producto.precio_venta)},{h:'Stock',r:r=>r.stock_actual},{h:'Mínimo',r:r=>r.stock_minimo},
-      {h:'Estado',r:r=>r.stock_actual<=r.stock_minimo?<Badge warn>Reabastecer</Badge>:<Badge ok>Normal</Badge>},{h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r.producto)}>Eliminar</button></div>}]}/></div>
-    {del&&<Confirm text={`¿Eliminar "${del.nombre}" de todas las sucursales?`} onNo={()=>setDel(null)} onYes={eliminar}/>}
+      {h:'Estado',r:r=>!r.producto.activo?<Badge>Inactivo</Badge>:r.stock_actual<=r.stock_minimo?<Badge warn>Reabastecer</Badge>:<Badge ok>Normal</Badge>},{h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r.producto)}>{r.producto.activo?'Deshabilitar':'Habilitar'}</button></div>}]}/></div>
+    {del&&<Confirm text={del.activo?`¿Deshabilitar "${del.nombre}"? Ya no aparecerá en el punto de venta, pero se conserva el historial.`:`¿Habilitar "${del.nombre}" para la venta?`} onNo={()=>setDel(null)} onYes={cambiarEstado}/>}
     {ed&&<Modal title="Editar producto" onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
       <F l="Nombre"><input required value={ed.producto.nombre} onChange={e=>setEd({...ed,producto:{...ed.producto,nombre:e.target.value}})}/></F>
       <F l="Precio de venta"><input required type="number" min="0.01" step="0.01" value={ed.producto.precio_venta} onChange={e=>setEd({...ed,producto:{...ed.producto,precio_venta:e.target.value}})}/></F>

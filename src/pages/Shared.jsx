@@ -59,7 +59,7 @@ export function Venta() {
   const { perfil } = useAuth(); const suc=useSuc(); const [sid,setSid]=useState(perfil.id_sucursal)
   const [inv,setInv]=useState([]),[mp,setMp]=useState([]),[cart,setCart]=useState({}),[met,setMet]=useState(''),[cat,setCat]=useState(''),[m,setM]=useState(null)
   const cargar=useCallback(async()=>{const [a,b]=await Promise.all([supabase.from('inventario').select('*, producto(*)').eq('id_sucursal',sid),supabase.from('metodo_pago').select('*').eq('activo',true)])
-    setInv((a.data||[]).filter(i=>i.producto.uso_previsto==='VENTA'));setMp(b.data||[])},[sid])
+    setInv((a.data||[]).filter(i=>i.producto.uso_previsto==='VENTA'&&i.producto.activo));setMp(b.data||[])},[sid])
   useEffect(()=>{cargar();setCart({})},[cargar])
   const cats=[...new Set(inv.map(i=>i.producto.categoria))]
   const items=inv.filter(i=>cart[i.id_producto]),total=items.reduce((s,i)=>s+cart[i.id_producto]*Number(i.producto.precio_venta),0)

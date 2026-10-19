@@ -28,7 +28,7 @@ export function Clientes() {
     <div className="card"><div className="row" style={{justifyContent:'space-between'}}><input style={{maxWidth:320}} placeholder="Buscar por nombre, clave o correo" value={q} onChange={e=>setQ(e.target.value)}/>
     <button className="btn" onClick={()=>{setM(null);setEd({nombre_completo:'',telefono:'',correo:'',fecha_nacimiento:'',activo:true})}}>Registrar cliente</button></div>
     <Table rows={f} cols={[{h:'Clave',r:r=>r.clave_socio},{h:'Nombre',r:r=>r.nombre_completo},{h:'Teléfono',r:r=>r.telefono},
-      {h:'Inicio membresía',r:r=>vig[r.id_cliente]?.fecha_inicio||'—'},{h:'Fin membresía',r:r=>vig[r.id_cliente]?.fecha_fin||'—'},{h:'Membresía',r:r=>estadoMem(vig[r.id_cliente])},
+      {h:'Inicio membresía',r:r=>vig[r.id_cliente]?.fecha_inicio||'—'},{h:'Fin membresía',r:r=>vig[r.id_cliente]?.fecha_fin||'—'},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'Membresía',r:r=>r.activo?estadoMem(vig[r.id_cliente]):'—'},
       {h:'',r:r=><button className="btn ghost sm" onClick={()=>{setM(null);setEd(r)}}>Editar</button>}]}/></div>
     {ed&&<Modal title={ed.id_cliente?'Editar cliente':'Registrar cliente'} onClose={()=>setEd(null)}>
       {ed.id_cliente&&<div className="sub">Clave {ed.clave_socio} · Membresía: {vig[ed.id_cliente]?`${vig[ed.id_cliente].fecha_inicio} al ${vig[ed.id_cliente].fecha_fin}`:'sin membresía activa'}</div>}

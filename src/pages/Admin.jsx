@@ -58,17 +58,19 @@ export function Empleados() {
 
 /* Interfaz: Gestión de sucursales | Registro/Actualización | Actor: Administrador | BD: SELECT/INSERT/UPDATE sucursal | Autor: [Nombre del Integrante del Equipo] */
 export function Sucursales() {
-  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
+  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null),[del,setDel]=useState(null)
   const cargar=useCallback(async()=>{const {data}=await supabase.from('sucursal').select('*').order('id_sucursal');setRows(data||[])},[])
   useEffect(()=>{cargar()},[cargar])
   const guardar=async(e)=>{e.preventDefault(); const {id_sucursal,...v}=ed; v.nombre=v.nombre.trim();v.direccion=v.direccion.trim()
     if(!RE_TEL.test(v.telefono)) return setM({t:'err',text:'El teléfono debe tener 10 dígitos'})
     const r=id_sucursal?await supabase.from('sucursal').update(v).eq('id_sucursal',id_sucursal):await supabase.from('sucursal').insert(v)
     if(r.error) return setM({t:'err',text:r.error.code==='23505'?'Ya existe una sucursal con ese nombre o dirección':r.error.message}); setM({t:'ok',text:'Sucursal guardada'});setEd(null);cargar()}
+  const eliminar=async()=>{const s=del;setDel(null);const {error}=await supabase.rpc('rpc_sucursal_eliminar',{p_id:s.id_sucursal});setM(error?{t:'err',text:error.message}:{t:'ok',text:'Sucursal eliminada'});cargar()}
   return <><h1>Sucursales</h1><div className="sub">Gestión de sucursales</div><Msg m={m}/>
     <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={()=>setEd({nombre:'',direccion:'',telefono:'',responsable:'',activo:true})}>Registrar sucursal</button></div>
     <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Dirección',r:r=>r.direccion},{h:'Teléfono',r:r=>r.telefono},{h:'Responsable',r:r=>r.responsable},{h:'Estado',r:r=>r.activo?<Badge ok>Activa</Badge>:<Badge>Inactiva</Badge>},
-      {h:'',r:r=><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button>}]}/></div>
+      {h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r)}>Eliminar</button></div>}]}/></div>
+    {del&&<Confirm text={`¿Eliminar la sucursal "${del.nombre}"? Esta acción no se puede deshacer.`} onNo={()=>setDel(null)} onYes={eliminar}/>}
     {ed&&<Modal title={ed.id_sucursal?'Editar sucursal':'Registrar sucursal'} onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
       {['nombre','direccion','telefono','responsable'].map(k=><F key={k} l={k[0].toUpperCase()+k.slice(1)}><input required maxLength={k==='telefono'?10:200} value={ed[k]} onChange={e=>setEd({...ed,[k]:k==='telefono'?e.target.value.replace(/\D/g,''):e.target.value})}/></F>)}
       {ed.id_sucursal&&<F l="Estado"><select value={ed.activo?'1':'0'} onChange={e=>setEd({...ed,activo:e.target.value==='1'})}><option value="1">Activa</option><option value="0">Inactiva</option></select></F>}
@@ -77,7 +79,7 @@ export function Sucursales() {
 
 /* Interfaz: Productos e inventario | Registro/Actualización/Consulta | Actor: Administrador | BD: SELECT producto, inventario; INSERT producto; UPDATE producto.precio_venta, inventario.stock_actual/stock_minimo | Autor: [Nombre del Integrante del Equipo] */
 export function Productos() {
-  const suc=useSuc(); const [sid,setSid]=useState(''),[rows,setRows]=useState([]),[ed,setEd]=useState(null),[np,setNp]=useState(null),[m,setM]=useState(null),[del,setDel]=useState(null)
+  const suc=useSuc(); const [sid,setSid]=useState(''),[rows,setRows]=useState([]),[ed,setEd]=useState(null),[np,setNp]=useState(null),[m,setM]=useState(null),[del,setDel]=useState(null),[delP,setDelP]=useState(null)
   useEffect(()=>{if(!sid&&suc.length)setSid(suc[0].id_sucursal)},[suc,sid])
   const cargar=useCallback(async()=>{if(!sid)return;const {data}=await supabase.from('inventario').select('*, producto(*)').eq('id_sucursal',sid);setRows((data||[]).sort((a,b)=>a.producto.categoria.localeCompare(b.producto.categoria)))},[sid])
   useEffect(()=>{cargar()},[cargar])
@@ -89,14 +91,16 @@ export function Productos() {
     const r=await supabase.from('producto').update({activo:!p.activo}).eq('id_producto',p.id_producto)
     if(r.error)return setM({t:'err',text:r.error.message})
     setM({t:'ok',text:p.activo?'Producto deshabilitado: ya no aparece en el punto de venta':'Producto habilitado'});cargar()}
+  const eliminarP=async()=>{const p=delP;setDelP(null);const {error}=await supabase.rpc('rpc_producto_eliminar',{p_id:p.id_producto});setM(error?{t:'err',text:error.message}:{t:'ok',text:'Producto eliminado'});cargar()}
   const crear=async(e)=>{e.preventDefault();const r=await supabase.from('producto').insert({...np,uso_previsto:'VENTA',precio_venta:+np.precio_venta})
     if(r.error) return setM({t:'err',text:r.error.code==='23505'?'Ya existe un producto con ese nombre':r.error.message});setM({t:'ok',text:'Producto registrado en todas las sucursales (stock 0)'});setNp(null);cargar()}
   return <><h1>Productos e inventario</h1><div className="sub">Precios globales; stock y mínimo por sucursal</div><Msg m={m}/>
     <div className="card"><div className="row" style={{justifyContent:'space-between'}}><select style={{maxWidth:260}} value={sid} onChange={e=>setSid(e.target.value)}>{suc.map(s=><option key={s.id_sucursal} value={s.id_sucursal}>{s.nombre}</option>)}</select>
     <button className="btn" onClick={()=>setNp({nombre:'',descripcion:'',categoria:CATS[0],proveedor:'',precio_venta:''})}>Registrar producto</button></div>
     <Table rows={rows} per={10} cols={[{h:'Producto',r:r=>r.producto.nombre},{h:'Categoría',r:r=>r.producto.categoria},{h:'Precio',r:r=>money(r.producto.precio_venta)},{h:'Stock',r:r=>r.stock_actual},{h:'Mínimo',r:r=>r.stock_minimo},
-      {h:'Estado',r:r=>!r.producto.activo?<Badge>Inactivo</Badge>:r.stock_actual<=r.stock_minimo?<Badge warn>Reabastecer</Badge>:<Badge ok>Normal</Badge>},{h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r.producto)}>{r.producto.activo?'Deshabilitar':'Habilitar'}</button></div>}]}/></div>
+      {h:'Estado',r:r=>!r.producto.activo?<Badge>Inactivo</Badge>:r.stock_actual<=r.stock_minimo?<Badge warn>Reabastecer</Badge>:<Badge ok>Normal</Badge>},{h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r.producto)}>{r.producto.activo?'Deshabilitar':'Habilitar'}</button><button className="btn ghost sm" onClick={()=>setDelP(r.producto)}>Eliminar</button></div>}]}/></div>
     {del&&<Confirm text={del.activo?`¿Deshabilitar "${del.nombre}"? Ya no aparecerá en el punto de venta, pero se conserva el historial.`:`¿Habilitar "${del.nombre}" para la venta?`} onNo={()=>setDel(null)} onYes={cambiarEstado}/>}
+    {delP&&<Confirm text={`¿Eliminar "${delP.nombre}" de todas las sucursales? Esta acción no se puede deshacer.`} onNo={()=>setDelP(null)} onYes={eliminarP}/>}
     {ed&&<Modal title="Editar producto" onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
       <F l="Nombre"><input required value={ed.producto.nombre} onChange={e=>setEd({...ed,producto:{...ed.producto,nombre:e.target.value}})}/></F>
       <F l="Precio de venta"><input required type="number" min="0.01" step="0.01" value={ed.producto.precio_venta} onChange={e=>setEd({...ed,producto:{...ed.producto,precio_venta:e.target.value}})}/></F>
@@ -120,15 +124,17 @@ export function Bitacora() {
 
 /* Interfaz: Tipos de membresía | Registro/Actualización/Consulta | Actor: Administrador | BD: SELECT/INSERT/UPDATE tipo_membresia | Autor: [Nombre del Integrante del Equipo] */
 export function TiposMembresia() {
-  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
+  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null),[del,setDel]=useState(null)
   const cargar=useCallback(async()=>{const {data}=await supabase.from('tipo_membresia').select('*').order('duracion_meses');setRows(data||[])},[])
   useEffect(()=>{cargar()},[cargar])
   const guardar=async(e)=>{e.preventDefault();const v={nombre:ed.nombre.trim(),duracion_meses:+ed.duracion_meses,costo:+ed.costo,activo:ed.activo}
     const r=ed.id_tipo_membresia?await supabase.from('tipo_membresia').update(v).eq('id_tipo_membresia',ed.id_tipo_membresia):await supabase.from('tipo_membresia').insert(v)
     if(r.error)return setM({t:'err',text:r.error.code==='23505'?'Ya existe un tipo con ese nombre':r.error.message});setM({t:'ok',text:'Tipo de membresía guardado (los cambios aplican a nuevas contrataciones)'});setEd(null);cargar()}
+  const eliminar=async()=>{const t=del;setDel(null);const {error}=await supabase.from('tipo_membresia').delete().eq('id_tipo_membresia',t.id_tipo_membresia);setM(error?{t:'err',text:error.code==='23503'?'No se puede eliminar: hay membresías contratadas con este tipo. Cámbialo a Inactivo.':error.message}:{t:'ok',text:'Tipo de membresía eliminado'});cargar()}
   return <><h1>Tipos de membresía</h1><div className="sub">Catálogo de planes. Las membresías ya contratadas conservan su costo y duración.</div><Msg m={m}/>
     <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={()=>setEd({nombre:'',duracion_meses:1,costo:'',activo:true})}>Registrar tipo</button></div>
-    <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Duración',r:r=>`${r.duracion_meses} mes(es)`},{h:'Costo',r:r=>money(r.costo)},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'',r:r=><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button>}]}/></div>
+    <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Duración',r:r=>`${r.duracion_meses} mes(es)`},{h:'Costo',r:r=>money(r.costo)},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r)}>Eliminar</button></div>}]}/></div>
+    {del&&<Confirm text={`¿Eliminar el tipo "${del.nombre}"? Esta acción no se puede deshacer.`} onNo={()=>setDel(null)} onYes={eliminar}/>}
     {ed&&<Modal title={ed.id_tipo_membresia?'Editar tipo':'Registrar tipo'} onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
       <F l="Nombre"><input required value={ed.nombre} onChange={e=>setEd({...ed,nombre:e.target.value})}/></F><F l="Duración (meses)"><input required type="number" min="1" value={ed.duracion_meses} onChange={e=>setEd({...ed,duracion_meses:e.target.value})}/></F>
       <F l="Costo"><input required type="number" min="0.01" step="0.01" value={ed.costo} onChange={e=>setEd({...ed,costo:e.target.value})}/></F>
@@ -137,15 +143,17 @@ export function TiposMembresia() {
 
 /* Interfaz: Métodos de pago | Registro/Actualización/Consulta | Actor: Administrador | BD: SELECT/INSERT/UPDATE metodo_pago | Autor: [Nombre del Integrante del Equipo] */
 export function MetodosPago() {
-  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null)
+  const [rows,setRows]=useState([]),[ed,setEd]=useState(null),[m,setM]=useState(null),[del,setDel]=useState(null)
   const cargar=useCallback(async()=>{const {data}=await supabase.from('metodo_pago').select('*').order('id_metodo_pago');setRows(data||[])},[])
   useEffect(()=>{cargar()},[cargar])
   const guardar=async(e)=>{e.preventDefault();const v={nombre:ed.nombre.trim(),es_efectivo:ed.es_efectivo,activo:ed.activo}
     const r=ed.id_metodo_pago?await supabase.from('metodo_pago').update(v).eq('id_metodo_pago',ed.id_metodo_pago):await supabase.from('metodo_pago').insert(v)
     if(r.error)return setM({t:'err',text:r.error.code==='23505'?'Ese método de pago ya existe':r.error.message});setM({t:'ok',text:'Método de pago guardado'});setEd(null);cargar()}
+  const eliminar=async()=>{const t=del;setDel(null);const {error}=await supabase.from('metodo_pago').delete().eq('id_metodo_pago',t.id_metodo_pago);setM(error?{t:'err',text:error.code==='23503'?'No se puede eliminar: hay pagos o ventas con este método. Cámbialo a Inactivo.':error.message}:{t:'ok',text:'Método de pago eliminado'});cargar()}
   return <><h1>Métodos de pago</h1><div className="sub">Solo el efectivo cuenta para el arqueo del corte de caja. Desactiva en lugar de eliminar para conservar el historial.</div><Msg m={m}/>
     <div className="card"><div className="row" style={{justifyContent:'flex-end'}}><button className="btn" onClick={()=>setEd({nombre:'',es_efectivo:false,activo:true})}>Registrar método</button></div>
-    <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'',r:r=><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button>}]}/></div>
+    <Table rows={rows} cols={[{h:'Nombre',r:r=>r.nombre},{h:'Estado',r:r=>r.activo?<Badge ok>Activo</Badge>:<Badge>Inactivo</Badge>},{h:'',r:r=><div className="row"><button className="btn ghost sm" onClick={()=>setEd(r)}>Editar</button><button className="btn ghost sm" onClick={()=>setDel(r)}>Eliminar</button></div>}]}/></div>
+    {del&&<Confirm text={`¿Eliminar el método "${del.nombre}"? Esta acción no se puede deshacer.`} onNo={()=>setDel(null)} onYes={eliminar}/>}
     {ed&&<Modal title={ed.id_metodo_pago?'Editar método':'Registrar método'} onClose={()=>setEd(null)}><form className="form" onSubmit={guardar}>
       <F l="Nombre"><input required value={ed.nombre} onChange={e=>setEd({...ed,nombre:e.target.value})}/></F>
       <F l="Tipo"><select value={ed.es_efectivo?'1':'0'} onChange={e=>setEd({...ed,es_efectivo:e.target.value==='1'})}><option value="0">No es efectivo</option><option value="1">Efectivo</option></select></F>
